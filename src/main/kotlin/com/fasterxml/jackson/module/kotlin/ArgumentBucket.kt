@@ -3,6 +3,7 @@ package com.fasterxml.jackson.module.kotlin
 import kotlin.reflect.KParameter
 
 internal class ArgumentBucket(private val parameters: List<KParameter>) : Map<KParameter, Any?> {
+    // This array is sorted by KParameter::index.
     val valueArray: Array<Any?> = arrayOfNulls(parameters.size)
     private val initializationStatuses: BooleanArray = BooleanArray(parameters.size)
     private var count = 0
