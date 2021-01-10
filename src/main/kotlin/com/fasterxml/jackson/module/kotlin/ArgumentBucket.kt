@@ -1,5 +1,6 @@
 package com.fasterxml.jackson.module.kotlin
 
+import java.util.AbstractMap.SimpleEntry as Entry
 import kotlin.reflect.KParameter
 
 internal class ArgumentBucket(private val parameters: List<KParameter>) : Map<KParameter, Any?> {
@@ -7,11 +8,6 @@ internal class ArgumentBucket(private val parameters: List<KParameter>) : Map<KP
     val valueArray: Array<Any?> = arrayOfNulls(parameters.size)
     private val initializationStatuses: BooleanArray = BooleanArray(parameters.size)
     private var count = 0
-
-    class Entry internal constructor(
-            override val key: KParameter,
-            override var value: Any?
-    ) : Map.Entry<KParameter, Any?>
 
     operator fun set(key: KParameter, value: Any?): Any? {
         return valueArray[key.index].apply {
