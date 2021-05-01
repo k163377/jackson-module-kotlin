@@ -38,9 +38,9 @@ internal class KotlinValueInstantiator(
         props: Array<out SettableBeanProperty>,
         buffer: PropertyValueBuffer
     ): Any? {
-        val callable = when (_withArgsCreator) {
-            is AnnotatedConstructor -> cache.kotlinFromJava(_withArgsCreator.annotated as Constructor<Any>)
-            is AnnotatedMethod -> cache.kotlinFromJava(_withArgsCreator.annotated as Method)
+        val instantiator: Instantiator<*> = when (_withArgsCreator) {
+            is AnnotatedConstructor -> cacheNew.kotlinFromJava(_withArgsCreator.annotated as Constructor<Any>)
+            is AnnotatedMethod -> cacheNew.kotlinFromJava(_withArgsCreator.annotated as Method)
             else -> throw IllegalStateException("Expected a constructor or method to create a Kotlin object, instead found ${_withArgsCreator.annotated.javaClass.name}")
         } ?: return super.createFromObjectWith(
             ctxt,
@@ -48,46 +48,9 @@ internal class KotlinValueInstantiator(
             buffer
         ) // we cannot reflect this method so do the default Java-ish behavior
 
-        if (callable.extensionReceiverParameter != null) {
-            // we shouldn't have an instance or receiver parameter and if we do, just go with default Java-ish behavior
-            return super.createFromObjectWith(ctxt, props, buffer)
-        }
+        val bucket = instantiator.generateBucket()
 
-        val propCount = props.size + if (callable.instanceParameter != null) 1 else 0
-
-        var numCallableParameters = 0
-        val callableParameters = arrayOfNulls<KParameter>(propCount)
-        val jsonParamValueList = arrayOfNulls<Any>(propCount)
-
-        if (callable.instanceParameter != null) {
-            val possibleCompanion = callable.instanceParameter!!.type.erasedType().kotlin
-
-            if (!possibleCompanion.isCompanion) {
-                // abort, we have some unknown case here
-                return super.createFromObjectWith(ctxt, props, buffer)
-            }
-
-            // TODO: cache this lookup since the exception throwing/catching can be expensive
-            jsonParamValueList[numCallableParameters] = try {
-                possibleCompanion.objectInstance
-            } catch (ex: IllegalAccessException) {
-                // fallback for when an odd access exception happens through Kotlin reflection
-                val companionField = possibleCompanion.java.enclosingClass.fields.firstOrNull { it.name == "Companion" }
-                        ?: throw ex
-                val accessible = companionField.isAccessible
-                if ((!accessible && ctxt.config.isEnabled(MapperFeature.CAN_OVERRIDE_ACCESS_MODIFIERS)) ||
-                    (accessible && ctxt.config.isEnabled(MapperFeature.OVERRIDE_PUBLIC_ACCESS_MODIFIERS))
-                ) {
-                    companionField.isAccessible = true
-                }
-                companionField.get(null) ?: throw ex
-            }
-
-            callableParameters[numCallableParameters] = callable.instanceParameter
-            numCallableParameters++
-        }
-
-        callable.valueParameters.forEachIndexed { idx, paramDef ->
+        instantiator.valueParameters.forEachIndexed { idx, paramDef ->
             val jsonProp = props[idx]
             val isMissing = !buffer.hasParameter(jsonProp)
 
@@ -148,30 +111,16 @@ internal class KotlinValueInstantiator(
                 }
             }
 
-            jsonParamValueList[numCallableParameters] = paramVal
-            callableParameters[numCallableParameters] = paramDef
-            numCallableParameters++
+            bucket[idx] = paramVal
         }
 
-        return if (numCallableParameters == jsonParamValueList.size && callable.instanceParameter == null) {
+        return if (bucket.nulCallableParameters == bucket.values.size && !instantiator.hasValueParameter) {
             // we didn't do anything special with default parameters, do a normal call
-            super.createFromObjectWith(ctxt, jsonParamValueList)
+            super.createFromObjectWith(ctxt, bucket.values)
         } else {
-            val accessible = callable.isAccessible
-            if ((!accessible && ctxt.config.isEnabled(MapperFeature.CAN_OVERRIDE_ACCESS_MODIFIERS)) ||
-                (accessible && ctxt.config.isEnabled(MapperFeature.OVERRIDE_PUBLIC_ACCESS_MODIFIERS))
-            ) {
-                callable.isAccessible = true
-            }
-            val callableParametersByName = linkedMapOf<KParameter, Any?>()
-            callableParameters.mapIndexed { idx, paramDef ->
-                if (paramDef != null) {
-                    callableParametersByName[paramDef] = jsonParamValueList[idx]
-                }
-            }
-            callable.callBy(callableParametersByName)
+            instantiator.checkAccessibility(ctxt)
+            instantiator.call(bucket)
         }
-
     }
 
     private fun KParameter.isPrimitive(): Boolean {
