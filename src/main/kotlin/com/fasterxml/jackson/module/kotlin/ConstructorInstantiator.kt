@@ -4,13 +4,15 @@ import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.MapperFeature
 import java.lang.reflect.Constructor
 import kotlin.reflect.KFunction
+import kotlin.reflect.KParameter
 import kotlin.reflect.jvm.javaConstructor
 
 // This class does not support inner constructor.
 internal class ConstructorInstantiator<T>(kConstructor: KFunction<T>) : Instantiator<T> {
+    override val valueParameters: List<KParameter> = kConstructor.parameters
     private val constructor: Constructor<T> = kConstructor.javaConstructor!!
     private val accessible: Boolean = constructor.isAccessible
-    private val bucketGenerator = BucketGenerator(kConstructor.parameters)
+    private val bucketGenerator = BucketGenerator(valueParameters)
     // This initialization process is heavy and will not be done until it is needed.
     private val localConstructor: Constructor<T> by lazy {
         // TODO: Improving efficiency of array generation and use SpreadWrapper
