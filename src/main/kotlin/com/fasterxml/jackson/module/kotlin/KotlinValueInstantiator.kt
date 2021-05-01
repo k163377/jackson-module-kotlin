@@ -26,6 +26,7 @@ import kotlin.reflect.jvm.javaType
 internal class KotlinValueInstantiator(
     src: StdValueInstantiator,
     private val cache: ReflectionCache,
+    private val cacheNew: ReflectionCacheNew,
     private val nullToEmptyCollection: Boolean,
     private val nullToEmptyMap: Boolean,
     private val nullIsSameAsDefault: Boolean,
@@ -185,6 +186,7 @@ internal class KotlinValueInstantiator(
 
 internal class KotlinInstantiators(
     private val cache: ReflectionCache,
+    private val cacheNew: ReflectionCacheNew,
     private val nullToEmptyCollection: Boolean,
     private val nullToEmptyMap: Boolean,
     private val nullIsSameAsDefault: Boolean,
@@ -197,7 +199,15 @@ internal class KotlinInstantiators(
     ): ValueInstantiator {
         return if (beanDescriptor.beanClass.isKotlinClass()) {
             if (defaultInstantiator is StdValueInstantiator) {
-                KotlinValueInstantiator(defaultInstantiator, cache, nullToEmptyCollection, nullToEmptyMap, nullIsSameAsDefault, strictNullChecks)
+                KotlinValueInstantiator(
+                    defaultInstantiator,
+                    cache,
+                    cacheNew,
+                    nullToEmptyCollection,
+                    nullToEmptyMap,
+                    nullIsSameAsDefault,
+                    strictNullChecks
+                )
             } else {
                 // TODO: return defaultInstantiator and let default method parameters and nullability go unused?  or die with exception:
                 throw IllegalStateException("KotlinValueInstantiator requires that the default ValueInstantiator is StdValueInstantiator")
