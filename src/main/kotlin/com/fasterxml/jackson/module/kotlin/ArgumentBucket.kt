@@ -5,6 +5,7 @@ import kotlin.reflect.jvm.jvmErasure
 
 class BucketGenerator(parameters: List<KParameter>) {
     private val paramSize: Int = parameters.size
+    val maskSize = (paramSize / Int.SIZE_BITS) + 1
     // For Optional and Primitive types, set the initial value because the function cannot be called if the argument is null.
     private val originalValues: Array<Any?> = parameters.map {
         if (it.isOptional) {
@@ -13,7 +14,7 @@ class BucketGenerator(parameters: List<KParameter>) {
             null
         }
     }.toTypedArray()
-    private val originalMasks: IntArray = IntArray((paramSize / Int.SIZE_BITS) + 1) { FILLED_MASK }
+    private val originalMasks: IntArray = IntArray(maskSize) { FILLED_MASK }
 
     fun generate() = ArgumentBucket(paramSize, originalValues.clone(), originalMasks.clone())
 
