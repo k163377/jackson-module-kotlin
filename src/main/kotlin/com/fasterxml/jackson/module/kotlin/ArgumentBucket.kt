@@ -38,6 +38,7 @@ class ArgumentBucket(
     private val masks: IntArray
 ) {
     private var initializedCount: Int = 0
+    val nulCallableParameters: Int get() = initializedCount
 
     private fun getMaskAddress(index: Int): Pair<Int, Int> = (index / Int.SIZE_BITS) to (index % Int.SIZE_BITS)
 
