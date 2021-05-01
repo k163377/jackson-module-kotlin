@@ -9,6 +9,7 @@ import kotlin.reflect.jvm.javaConstructor
 
 // This class does not support inner constructor.
 internal class ConstructorInstantiator<T>(kConstructor: KFunction<T>) : Instantiator<T> {
+    override val hasValueParameter: Boolean = false
     override val valueParameters: List<KParameter> = kConstructor.parameters
     private val constructor: Constructor<T> = kConstructor.javaConstructor!!
     private val accessible: Boolean = constructor.isAccessible

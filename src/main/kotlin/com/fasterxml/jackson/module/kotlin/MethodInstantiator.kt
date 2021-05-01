@@ -10,6 +10,7 @@ import kotlin.reflect.jvm.javaMethod
 
 // This class does not support inner constructor.
 internal class MethodInstantiator<T>(kFunction: KFunction<T>) : Instantiator<T> {
+    override val hasValueParameter: Boolean = true // TODO: fix on support top level function
     override val valueParameters: List<KParameter> = kFunction.valueParameters
     private val method = kFunction.javaMethod!!
     // TODO: add check or fallback
