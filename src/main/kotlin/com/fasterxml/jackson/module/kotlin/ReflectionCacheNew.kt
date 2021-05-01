@@ -6,6 +6,7 @@ import java.lang.reflect.Method
 import kotlin.reflect.jvm.kotlinFunction
 
 // TODO: Streamlining the process of getting an Instantiator by reflection.
+// TODO: add extensionReceiverParameter check
 internal class ReflectionCacheNew(reflectionCacheSize: Int) {
     private val javaConstructorToKotlin = SimpleLookupCache<Constructor<Any>, ConstructorInstantiator<Any>>(reflectionCacheSize, reflectionCacheSize)
     private val javaMethodToKotlin = SimpleLookupCache<Method, MethodInstantiator<*>>(reflectionCacheSize, reflectionCacheSize)
