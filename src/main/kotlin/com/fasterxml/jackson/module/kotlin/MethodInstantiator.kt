@@ -39,16 +39,14 @@ internal class MethodInstantiator<T>(kFunction: KFunction<T>) : Instantiator<T> 
     }
 
     // This initialization process is heavy and will not be done until it is needed.
-    private val localMethodPair: Pair<Method, Boolean> by lazy {
-        // TODO: Consider whether this method of acquisition is appropriate.
-        val method = method.declaringClass.declaredMethods
-            .first { it.name == "${method.name}\$default" }
-            .apply { isAccessible = true }
-        val isStatic = method.parameterTypes
-            .firstOrNull()
-            ?.let { instance != null && it == instance::class.java } ?: false
-
-        method to isStatic
+    private val localMethod: Method by lazy {
+        method.declaringClass.getDeclaredMethod(
+            "${method.name}\$default",
+            instance!!::class.java, // TODO: add check if instance is null
+            *method.parameterTypes,
+            *Array(bucketGenerator.maskSize) { Int::class.javaPrimitiveType },
+            Object::class.java
+        )
     }
 
     override fun checkAccessibility(ctxt: DeserializationContext) {
@@ -64,9 +62,8 @@ internal class MethodInstantiator<T>(kFunction: KFunction<T>) : Instantiator<T> 
 
     // TODO: use SpreadWrapper
     @Suppress("UNCHECKED_CAST")
-    override fun call(bucket: ArgumentBucket) = when {
-        bucket.isFullInitialized() -> method.invoke(instance, *bucket.values)
-        localMethodPair.second -> localMethodPair.first.invoke(null, instance, *bucket.getValuesOnDefault())
-        else -> localMethodPair.first.invoke(instance, *bucket.getValuesOnDefault())
+    override fun call(bucket: ArgumentBucket) = when (bucket.isFullInitialized()) {
+        true -> method.invoke(instance, *bucket.values)
+        false -> localMethod.invoke(null, instance, *bucket.getValuesOnDefault())
     } as T
 }
