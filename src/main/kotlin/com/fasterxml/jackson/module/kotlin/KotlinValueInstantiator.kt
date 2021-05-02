@@ -99,7 +99,7 @@ internal class KotlinValueInstantiator(
             bucket[idx] = paramVal
         }
 
-        return if (bucket.nulCallableParameters == bucket.values.size && !instantiator.hasValueParameter) {
+        return if (bucket.isFullInitialized() && !instantiator.hasValueParameter) {
             // we didn't do anything special with default parameters, do a normal call
             super.createFromObjectWith(ctxt, bucket.values)
         } else {
