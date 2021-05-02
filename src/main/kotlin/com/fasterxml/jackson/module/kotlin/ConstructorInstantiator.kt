@@ -43,7 +43,7 @@ internal class ConstructorInstantiator<T>(kConstructor: KFunction<T>) : Instanti
     override fun generateBucket() = bucketGenerator.generate()
 
     // TODO: use SpreadWrapper
-    override fun call(bucket: ArgumentBucket) = if (bucket.isFullInitialized())
+    override fun call(bucket: ArgumentBucket): T = if (bucket.isFullInitialized())
         constructor.newInstance(*bucket.values)
     else
         localConstructor.newInstance(*bucket.getValuesOnDefault())
