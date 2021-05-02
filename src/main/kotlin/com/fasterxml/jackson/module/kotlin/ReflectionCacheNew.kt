@@ -41,7 +41,7 @@ internal class ReflectionCacheNew(reflectionCacheSize: Int) {
                     } catch (ex: IllegalAccessException) {
                         // fallback for when an odd access exception happens through Kotlin reflection
                         possibleCompanion.java.enclosingClass.fields
-                            .firstOrNull { callable.name == "Companion" }
+                            .firstOrNull { it.type.kotlin.isCompanion }
                             ?.let {
                                 companionAccessible = it.isAccessible
                                 it.isAccessible = true
