@@ -28,13 +28,15 @@ internal class MethodInstantiator<T>(
 
     // This initialization process is heavy and will not be done until it is needed.
     private val localMethod: Method by lazy {
-        method.declaringClass.getDeclaredMethod(
+        instance::class.java.getDeclaredMethod(
             "${method.name}\$default",
             instance::class.java,
             *method.parameterTypes,
             *Array(bucketGenerator.maskSize) { Int::class.javaPrimitiveType },
             Object::class.java
-        )
+        ).apply {
+            isAccessible = true
+        }
     }
 
     override fun checkAccessibility(ctxt: DeserializationContext) {
