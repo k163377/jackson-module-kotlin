@@ -1,6 +1,8 @@
 package com.fasterxml.jackson.module.kotlin
 
 import com.fasterxml.jackson.databind.util.LRUMap
+import com.fasterxml.jackson.module.kotlin.instantiator.ConstructorInstantiator
+import com.fasterxml.jackson.module.kotlin.instantiator.MethodInstantiator
 import java.lang.reflect.Constructor
 import java.lang.reflect.Method
 import kotlin.reflect.jvm.kotlinFunction

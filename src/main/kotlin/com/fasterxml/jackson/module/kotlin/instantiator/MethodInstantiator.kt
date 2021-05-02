@@ -1,7 +1,8 @@
-package com.fasterxml.jackson.module.kotlin
+package com.fasterxml.jackson.module.kotlin.instantiator
 
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.MapperFeature
+import com.fasterxml.jackson.module.kotlin.erasedType
 import java.lang.reflect.Method
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter

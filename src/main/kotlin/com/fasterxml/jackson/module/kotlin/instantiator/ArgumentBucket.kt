@@ -1,4 +1,4 @@
-package com.fasterxml.jackson.module.kotlin
+package com.fasterxml.jackson.module.kotlin.instantiator
 
 import kotlin.reflect.KParameter
 import kotlin.reflect.jvm.jvmErasure
