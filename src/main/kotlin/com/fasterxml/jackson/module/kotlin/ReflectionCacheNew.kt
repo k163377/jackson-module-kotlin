@@ -36,7 +36,8 @@ internal class ReflectionCacheNew(reflectionCacheSize: Int) {
                 .takeIf { it.isCompanion } // abort, we have some unknown case here
                 ?.let { possibleCompanion ->
                     try {
-                        possibleCompanion.objectInstance
+                        companionInstance = possibleCompanion.objectInstance
+                        companionAccessible = true
                     } catch (ex: IllegalAccessException) {
                         // fallback for when an odd access exception happens through Kotlin reflection
                         possibleCompanion.java.enclosingClass.fields
