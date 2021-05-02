@@ -27,7 +27,7 @@ internal class ReflectionCacheNew(reflectionCacheSize: Int) {
     fun kotlinFromJava(key: Method): MethodInstantiator<*>? = javaMethodToKotlin.get(key)
         ?: key.kotlinFunction?.takeIf {
             // we shouldn't have an instance or receiver parameter and if we do, just go with default Java-ish behavior
-            it.extensionReceiverParameter != null
+            it.extensionReceiverParameter == null
         }?.let { callable ->
             var companionInstance: Any? = null
             var companionAccessible: Boolean? = null
