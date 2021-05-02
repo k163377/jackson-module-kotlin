@@ -11,39 +11,23 @@ import kotlin.reflect.full.valueParameters
 import kotlin.reflect.jvm.javaMethod
 
 // This class does not support inner constructor.
-internal class MethodInstantiator<T>(kFunction: KFunction<T>) : Instantiator<T> {
+internal class MethodInstantiator<T>(
+    kFunction: KFunction<T>, private val method: Method, private val instance: Any
+) : Instantiator<T> {
     override val hasValueParameter: Boolean = true // TODO: fix on support top level function
     override val valueParameters: List<KParameter> = kFunction.valueParameters
-    private val method = kFunction.javaMethod!!
-    // TODO: add fallback option
-    private val instance: Any?
     private val accessible: Boolean = method.isAccessible
     private val bucketGenerator = BucketGenerator(valueParameters)
 
     init {
         method.isAccessible = true
-
-        val possibleCompanion = kFunction.instanceParameter!!.type.erasedType().kotlin
-
-        instance = if (!possibleCompanion.isCompanion) {
-            null
-        } else {
-            try {
-                possibleCompanion.objectInstance!!
-            } catch (ex: IllegalAccessException) {
-                val companionField = possibleCompanion.java.enclosingClass.fields.firstOrNull { it.name == "Companion" }
-                    ?: throw ex
-                companionField.isAccessible = true
-                companionField.get(null) ?: throw ex
-            }
-        }
     }
 
     // This initialization process is heavy and will not be done until it is needed.
     private val localMethod: Method by lazy {
         method.declaringClass.getDeclaredMethod(
             "${method.name}\$default",
-            instance!!::class.java, // TODO: add check if instance is null
+            instance::class.java,
             *method.parameterTypes,
             *Array(bucketGenerator.maskSize) { Int::class.javaPrimitiveType },
             Object::class.java
