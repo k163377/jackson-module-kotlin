@@ -12,11 +12,14 @@ import kotlin.reflect.jvm.javaMethod
 
 // This class does not support inner constructor.
 internal class MethodInstantiator<T>(
-    kFunction: KFunction<T>, private val method: Method, private val instance: Any
+    kFunction: KFunction<T>,
+    private val method: Method,
+    private val instance: Any,
+    companionAccessible: Boolean
 ) : Instantiator<T> {
     override val hasValueParameter: Boolean = true // TODO: fix on support top level function
     override val valueParameters: List<KParameter> = kFunction.valueParameters
-    private val accessible: Boolean = method.isAccessible
+    private val accessible: Boolean = companionAccessible && method.isAccessible
     private val bucketGenerator = BucketGenerator(valueParameters)
 
     init {
@@ -35,6 +38,7 @@ internal class MethodInstantiator<T>(
     }
 
     override fun checkAccessibility(ctxt: DeserializationContext) {
+
         if ((!accessible && ctxt.config.isEnabled(MapperFeature.CAN_OVERRIDE_ACCESS_MODIFIERS)) ||
             (accessible && ctxt.config.isEnabled(MapperFeature.OVERRIDE_PUBLIC_ACCESS_MODIFIERS))) {
             return
