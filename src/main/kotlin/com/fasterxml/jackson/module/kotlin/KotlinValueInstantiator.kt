@@ -9,11 +9,7 @@ import com.fasterxml.jackson.databind.deser.ValueInstantiators
 import com.fasterxml.jackson.databind.deser.impl.NullsAsEmptyProvider
 import com.fasterxml.jackson.databind.deser.impl.PropertyValueBuffer
 import com.fasterxml.jackson.databind.deser.std.StdValueInstantiator
-import com.fasterxml.jackson.databind.introspect.AnnotatedConstructor
-import com.fasterxml.jackson.databind.introspect.AnnotatedMethod
 import com.fasterxml.jackson.module.kotlin.instantiator.Instantiator
-import java.lang.reflect.Constructor
-import java.lang.reflect.Method
 import java.lang.reflect.TypeVariable
 import kotlin.reflect.KParameter
 import kotlin.reflect.KType
@@ -34,15 +30,8 @@ internal class KotlinValueInstantiator(
         props: Array<out SettableBeanProperty>,
         buffer: PropertyValueBuffer
     ): Any? {
-        val instantiator: Instantiator<*> = when (_withArgsCreator) {
-            is AnnotatedConstructor -> cacheNew.kotlinFromJava(_withArgsCreator.annotated as Constructor<Any>)
-            is AnnotatedMethod -> cacheNew.kotlinFromJava(_withArgsCreator.annotated as Method)
-            else -> throw IllegalStateException("Expected a constructor or method to create a Kotlin object, instead found ${_withArgsCreator.annotated.javaClass.name}")
-        } ?: return super.createFromObjectWith(
-            ctxt,
-            props,
-            buffer
-        ) // we cannot reflect this method so do the default Java-ish behavior
+        val instantiator: Instantiator<*> = cacheNew.instantiatorFromJava(_withArgsCreator)
+            ?: return super.createFromObjectWith(ctxt, props, buffer) // we cannot reflect this method so do the default Java-ish behavior
 
         val bucket = instantiator.generateBucket()
 
