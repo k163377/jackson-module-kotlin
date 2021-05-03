@@ -2,14 +2,12 @@ package com.fasterxml.jackson.module.kotlin.instantiator
 
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.MapperFeature
-import com.fasterxml.jackson.module.kotlin.erasedType
+import com.fasterxml.jackson.module.kotlin.SpreadWrapper
 import com.fasterxml.jackson.module.kotlin.instantiator.Instantiator.Companion.INT_PRIMITIVE_CLASS
 import java.lang.reflect.Method
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
-import kotlin.reflect.full.instanceParameter
 import kotlin.reflect.full.valueParameters
-import kotlin.reflect.jvm.javaMethod
 
 // This class does not support inner constructor.
 internal class MethodInstantiator<T>(
@@ -31,6 +29,11 @@ internal class MethodInstantiator<T>(
         Instance, ParameterTypes, Mask, Marker
     }
 
+    // argument size = parameterSize + maskSize + instanceSize(= 1) + markerSize(= 1)
+    private val defaultArgumentSize: Int by lazy {
+        valueParameters.size + bucketGenerator.maskSize + 2
+    }
+
     // This initialization process is heavy and will not be done until it is needed.
     private val localMethod: Method by lazy {
         val instanceClazz = instance::class.java
@@ -38,8 +41,8 @@ internal class MethodInstantiator<T>(
 
         var processingMode = ProcessingMode.Instance
         var innerIndex = 0
-        // argument size = parameterSize + maskSize + instanceSize(= 1) + markerSize(= 1)
-        val argumentTypes = Array(valueParameters.size + bucketGenerator.maskSize + 2) {
+
+        val argumentTypes = Array(defaultArgumentSize) {
             when(processingMode) {
                 ProcessingMode.Instance -> {
                     processingMode = ProcessingMode.ParameterTypes
@@ -69,9 +72,13 @@ internal class MethodInstantiator<T>(
         instanceClazz.getDeclaredMethod("${method.name}\$default", *argumentTypes)
             .apply { isAccessible = true }
     }
+    private val originalDefaultValues: Array<Any?> by lazy {
+        Array<Any?>(defaultArgumentSize) { null }.apply {
+            this[0] = instance
+        }
+    }
 
     override fun checkAccessibility(ctxt: DeserializationContext) {
-
         if ((!accessible && ctxt.config.isEnabled(MapperFeature.CAN_OVERRIDE_ACCESS_MODIFIERS)) ||
             (accessible && ctxt.config.isEnabled(MapperFeature.OVERRIDE_PUBLIC_ACCESS_MODIFIERS))) {
             return
@@ -82,10 +89,16 @@ internal class MethodInstantiator<T>(
 
     override fun generateBucket() = bucketGenerator.generate()
 
-    // TODO: use SpreadWrapper
     @Suppress("UNCHECKED_CAST")
     override fun call(bucket: ArgumentBucket) = when (bucket.isFullInitialized()) {
-        true -> method.invoke(instance, *bucket.values)
-        false -> localMethod.invoke(null, instance, *bucket.getValuesOnDefault())
+        true -> SpreadWrapper.invoke(method, instance, bucket.values)
+        false -> {
+            val values = originalDefaultValues.clone().apply {
+                bucket.getValuesOnDefault().forEachIndexed { index, value ->
+                    this[index + 1] = value
+                }
+            }
+            SpreadWrapper.invoke(localMethod, null, values)
+        }
     } as T
 }

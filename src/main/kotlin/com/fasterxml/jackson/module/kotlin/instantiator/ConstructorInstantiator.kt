@@ -2,6 +2,7 @@ package com.fasterxml.jackson.module.kotlin.instantiator
 
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.MapperFeature
+import com.fasterxml.jackson.module.kotlin.SpreadWrapper
 import com.fasterxml.jackson.module.kotlin.instantiator.Instantiator.Companion.INT_PRIMITIVE_CLASS
 import java.lang.reflect.Constructor
 import kotlin.reflect.KFunction
@@ -44,11 +45,10 @@ internal class ConstructorInstantiator<T>(
 
     override fun generateBucket() = bucketGenerator.generate()
 
-    // TODO: use SpreadWrapper
-    override fun call(bucket: ArgumentBucket): T = if (bucket.isFullInitialized())
-        constructor.newInstance(*bucket.values)
-    else
-        localConstructor.newInstance(*bucket.getValuesOnDefault())
+    override fun call(bucket: ArgumentBucket): T = when (bucket.isFullInitialized()) {
+        true -> SpreadWrapper.newInstance(constructor, bucket.values)
+        false -> SpreadWrapper.newInstance(localConstructor, bucket.getValuesOnDefault())
+    }
 
     companion object {
         private val DEFAULT_CONSTRUCTOR_MARKER: Class<*> = try {
