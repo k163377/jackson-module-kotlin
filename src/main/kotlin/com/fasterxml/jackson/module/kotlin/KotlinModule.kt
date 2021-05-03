@@ -26,6 +26,9 @@ fun Class<*>.isKotlinClass(): Boolean {
  *                                      the default, collections which are typed to disallow null members
  *                                      (e.g. List<String>) may contain null values after deserialization.  Enabling it
  *                                      protects against this but has significant performance impact.
+ * @param   experimentalDeserializationBackend
+ *                                  Default: false.  Whether to enable experimental deserialization backend.  Enabling
+ *                                      it significantly improve performance in certain use cases.
  */
 class KotlinModule constructor (
     val reflectionCacheSize: Int = 512,
@@ -33,7 +36,8 @@ class KotlinModule constructor (
     val nullToEmptyMap: Boolean = false,
     val nullIsSameAsDefault: Boolean = false,
     val singletonSupport: SingletonSupport = DISABLED,
-    val strictNullChecks: Boolean = false
+    val strictNullChecks: Boolean = false,
+    val experimentalDeserializationBackend: Boolean = false
 ) : SimpleModule(PackageVersion.VERSION) {
     @Deprecated(level = DeprecationLevel.HIDDEN, message = "For ABI compatibility")
     constructor(
@@ -76,7 +80,13 @@ class KotlinModule constructor (
         val cacheNew = ReflectionCacheNew(reflectionCacheSize)
 
         context.addValueInstantiators(KotlinInstantiators(
-            cache, cacheNew, nullToEmptyCollection, nullToEmptyMap, nullIsSameAsDefault, strictNullChecks
+            cache,
+            cacheNew,
+            nullToEmptyCollection,
+            nullToEmptyMap,
+            nullIsSameAsDefault,
+            strictNullChecks,
+            experimentalDeserializationBackend
         ))
 
         when(singletonSupport) {
@@ -122,6 +132,9 @@ class KotlinModule constructor (
         var strictNullChecks = false
             private set
 
+        var experimentalDeserializationBackend = false
+            private set
+
         fun reflectionCacheSize(reflectionCacheSize: Int) = apply { this.reflectionCacheSize = reflectionCacheSize }
 
         fun nullToEmptyCollection(nullToEmptyCollection: Boolean) =
@@ -136,6 +149,9 @@ class KotlinModule constructor (
 
         fun strictNullChecks(strictNullChecks: Boolean) =
                 apply { this.strictNullChecks = strictNullChecks }
+
+        fun experimentalDeserializationBackend(experimentalDeserializationBackend: Boolean) =
+            apply { this.experimentalDeserializationBackend = experimentalDeserializationBackend }
 
         fun build() = KotlinModule(this)
     }
