@@ -26,17 +26,45 @@ internal class MethodInstantiator<T>(
         method.isAccessible = true
     }
 
+    private enum class ProcessingMode {
+        Instance, ParameterTypes, Mask, Marker
+    }
+
     // This initialization process is heavy and will not be done until it is needed.
     private val localMethod: Method by lazy {
-        instance::class.java.getDeclaredMethod(
-            "${method.name}\$default",
-            instance::class.java,
-            *method.parameterTypes,
-            *Array(bucketGenerator.maskSize) { Int::class.javaPrimitiveType },
-            Object::class.java
-        ).apply {
-            isAccessible = true
+        var processingMode = ProcessingMode.Instance
+        var innerIndex = 0
+        val parameterTypes = method.parameterTypes
+        // argument size = parameterSize + maskSize + instanceSize(= 1) + markerSize(= 1)
+        val argumentTypes = Array(valueParameters.size + bucketGenerator.maskSize + 2) {
+            when(processingMode) {
+                ProcessingMode.Instance -> {
+                    processingMode = ProcessingMode.ParameterTypes
+                    instance::class.java
+                }
+                ProcessingMode.ParameterTypes -> {
+                    val next = parameterTypes[innerIndex]
+                    innerIndex++
+                    if (innerIndex == parameterTypes.size) {
+                        processingMode = ProcessingMode.Mask
+                        innerIndex = 0
+                    }
+
+                    next
+                }
+                ProcessingMode.Mask -> {
+                    innerIndex++
+                    if (innerIndex == bucketGenerator.maskSize) {
+                        processingMode = ProcessingMode.Marker
+                    }
+                    Int::class.javaPrimitiveType
+                }
+                ProcessingMode.Marker -> Object::class.java
+            }
         }
+
+        instance::class.java.getDeclaredMethod("${method.name}\$default", *argumentTypes)
+            .apply { isAccessible = true }
     }
 
     override fun checkAccessibility(ctxt: DeserializationContext) {
