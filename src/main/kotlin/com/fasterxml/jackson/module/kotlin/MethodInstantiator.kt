@@ -24,56 +24,23 @@ internal class MethodInstantiator<T>(
         method.isAccessible = true
     }
 
-    private enum class ProcessingMode {
-        Instance, ParameterTypes, Mask, Marker
-    }
-
-    // argument size = parameterSize + maskSize + instanceSize(= 1) + markerSize(= 1)
-    private val defaultArgumentSize: Int by lazy {
-        valueParameters.size + bucketGenerator.maskSize + 2
-    }
-
     // This initialization process is heavy and will not be done until it is needed.
     private val localMethod: Method by lazy {
         val instanceClazz = instance::class.java
-        val parameterTypes = method.parameterTypes
 
-        var processingMode = ProcessingMode.Instance
-        var innerIndex = 0
-
-        // argumentTypes = arrayOf(instanceClazz, *parameterTypes, *Array(bucketGenerator.maskSize) { INT_PRIMITIVE_CLASS }, Object::class.java)
-        val argumentTypes = Array(defaultArgumentSize) {
-            when(processingMode) {
-                ProcessingMode.Instance -> {
-                    processingMode = ProcessingMode.ParameterTypes
-                    instanceClazz
-                }
-                ProcessingMode.ParameterTypes -> {
-                    val next = parameterTypes[innerIndex]
-                    innerIndex++
-                    if (innerIndex == parameterTypes.size) {
-                        processingMode = ProcessingMode.Mask
-                        innerIndex = 0
-                    }
-
-                    next
-                }
-                ProcessingMode.Mask -> {
-                    innerIndex++
-                    if (innerIndex == bucketGenerator.maskSize) {
-                        processingMode = ProcessingMode.Marker
-                    }
-                    INT_PRIMITIVE_CLASS
-                }
-                ProcessingMode.Marker -> Object::class.java
-            }
-        }
+        val argumentTypes = arrayOf(
+            instanceClazz,
+            *method.parameterTypes,
+            *Array(bucketGenerator.maskSize) { INT_PRIMITIVE_CLASS },
+            Object::class.java
+        )
 
         SpreadWrapper.getDeclaredMethod(instanceClazz, "${method.name}\$default", argumentTypes)
             .apply { isAccessible = true }
     }
     private val originalDefaultValues: Array<Any?> by lazy {
-        Array<Any?>(defaultArgumentSize) { null }.apply {
+        // argument size = parameterSize + maskSize + instanceSize(= 1) + markerSize(= 1)
+        Array<Any?>(valueParameters.size + bucketGenerator.maskSize + 2) { null }.apply {
             this[0] = instance
         }
     }

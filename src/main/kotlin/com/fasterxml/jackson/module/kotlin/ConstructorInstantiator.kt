@@ -17,12 +17,11 @@ internal class ConstructorInstantiator<T>(
     private val bucketGenerator = BucketGenerator(valueParameters)
     // This initialization process is heavy and will not be done until it is needed.
     private val localConstructor: Constructor<T> by lazy {
-        val lastMaskIndex = valueParameters.size + bucketGenerator.maskSize
-
-        val parameterTypes = constructor.parameterTypes.copyOf(lastMaskIndex + 1).apply {
-            (valueParameters.size until lastMaskIndex).forEach { this[it] = INT_PRIMITIVE_CLASS }
-            this[lastMaskIndex] = DEFAULT_CONSTRUCTOR_MARKER
-        }
+        val parameterTypes = arrayOf(
+            *constructor.parameterTypes,
+            *Array(bucketGenerator.maskSize) { INT_PRIMITIVE_CLASS },
+            DEFAULT_CONSTRUCTOR_MARKER
+        )
 
         SpreadWrapper.getConstructor(constructor.declaringClass, parameterTypes)
             .apply { isAccessible = true }
