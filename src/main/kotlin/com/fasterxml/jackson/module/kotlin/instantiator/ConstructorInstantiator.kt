@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.MapperFeature
 import java.lang.reflect.Constructor
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
-import kotlin.reflect.jvm.javaConstructor
 
 // This class does not support inner constructor.
 internal class ConstructorInstantiator<T>(
@@ -17,14 +16,15 @@ internal class ConstructorInstantiator<T>(
     private val bucketGenerator = BucketGenerator(valueParameters)
     // This initialization process is heavy and will not be done until it is needed.
     private val localConstructor: Constructor<T> by lazy {
-        // TODO: Improving efficiency of array generation and use SpreadWrapper
-        constructor.declaringClass.getConstructor(
-            *constructor.parameterTypes,
-            *Array(bucketGenerator.maskSize) { Int::class.javaPrimitiveType },
-            DEFAULT_CONSTRUCTOR_MARKER
-        ).apply {
-            isAccessible = true
+        val lastMaskIndex = valueParameters.size + bucketGenerator.maskSize
+
+        val parameterTypes = constructor.parameterTypes.copyOf(lastMaskIndex + 1).apply {
+            (valueParameters.size until lastMaskIndex).forEach { this[it] = Int::class.javaPrimitiveType }
+            this[lastMaskIndex] = DEFAULT_CONSTRUCTOR_MARKER
         }
+
+        constructor.declaringClass.getConstructor(*parameterTypes)
+            .apply { isAccessible = true }
     }
 
     init {
