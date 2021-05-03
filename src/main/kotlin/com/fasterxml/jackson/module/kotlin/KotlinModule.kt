@@ -73,8 +73,11 @@ class KotlinModule constructor (
         }
 
         val cache = ReflectionCache(reflectionCacheSize)
+        val cacheNew = ReflectionCacheNew(reflectionCacheSize)
 
-        context.addValueInstantiators(KotlinInstantiators(cache, nullToEmptyCollection, nullToEmptyMap, nullIsSameAsDefault, strictNullChecks))
+        context.addValueInstantiators(KotlinInstantiators(
+            cache, cacheNew, nullToEmptyCollection, nullToEmptyMap, nullIsSameAsDefault, strictNullChecks
+        ))
 
         when(singletonSupport) {
             DISABLED -> Unit
