@@ -15,7 +15,7 @@ internal class MethodInstantiator<T>(
     private val instance: Any,
     companionAccessible: Boolean
 ) : Instantiator<T> {
-    override val hasValueParameter: Boolean = true
+    override val hasInstanceParameter: Boolean = true
     override val valueParameters: List<KParameter> = kFunction.valueParameters
     private val accessible: Boolean = companionAccessible && method.isAccessible
     private val bucketGenerator = BucketGenerator(valueParameters)

@@ -11,7 +11,7 @@ import kotlin.reflect.KParameter
 internal class ConstructorInstantiator<T>(
     kConstructor: KFunction<T>, private val constructor: Constructor<T>
 ) : Instantiator<T> {
-    override val hasValueParameter: Boolean = false
+    override val hasInstanceParameter: Boolean = false
     override val valueParameters: List<KParameter> = kConstructor.parameters
     private val accessible: Boolean = constructor.isAccessible
     private val bucketGenerator = BucketGenerator(valueParameters)

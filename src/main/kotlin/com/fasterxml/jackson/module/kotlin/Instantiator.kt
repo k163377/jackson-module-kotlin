@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.DeserializationContext
 import kotlin.reflect.KParameter
 
 internal interface Instantiator<T> {
-    val hasValueParameter: Boolean
+    val hasInstanceParameter: Boolean
     val valueParameters: List<KParameter>
     fun checkAccessibility(ctxt: DeserializationContext)
 
