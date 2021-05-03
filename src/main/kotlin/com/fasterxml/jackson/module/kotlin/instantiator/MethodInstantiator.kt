@@ -3,6 +3,7 @@ package com.fasterxml.jackson.module.kotlin.instantiator
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.module.kotlin.erasedType
+import com.fasterxml.jackson.module.kotlin.instantiator.Instantiator.Companion.INT_PRIMITIVE_CLASS
 import java.lang.reflect.Method
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
@@ -57,7 +58,7 @@ internal class MethodInstantiator<T>(
                     if (innerIndex == bucketGenerator.maskSize) {
                         processingMode = ProcessingMode.Marker
                     }
-                    Int::class.javaPrimitiveType
+                    INT_PRIMITIVE_CLASS
                 }
                 ProcessingMode.Marker -> Object::class.java
             }

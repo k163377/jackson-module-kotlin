@@ -2,6 +2,7 @@ package com.fasterxml.jackson.module.kotlin.instantiator
 
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.MapperFeature
+import com.fasterxml.jackson.module.kotlin.instantiator.Instantiator.Companion.INT_PRIMITIVE_CLASS
 import java.lang.reflect.Constructor
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
@@ -19,7 +20,7 @@ internal class ConstructorInstantiator<T>(
         val lastMaskIndex = valueParameters.size + bucketGenerator.maskSize
 
         val parameterTypes = constructor.parameterTypes.copyOf(lastMaskIndex + 1).apply {
-            (valueParameters.size until lastMaskIndex).forEach { this[it] = Int::class.javaPrimitiveType }
+            (valueParameters.size until lastMaskIndex).forEach { this[it] = INT_PRIMITIVE_CLASS }
             this[lastMaskIndex] = DEFAULT_CONSTRUCTOR_MARKER
         }
 

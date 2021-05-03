@@ -10,4 +10,8 @@ internal interface Instantiator<T> {
 
     fun generateBucket(): ArgumentBucket
     fun call(bucket: ArgumentBucket): T
+
+    companion object {
+        val INT_PRIMITIVE_CLASS: Class<Int> = Int::class.javaPrimitiveType!!
+    }
 }
