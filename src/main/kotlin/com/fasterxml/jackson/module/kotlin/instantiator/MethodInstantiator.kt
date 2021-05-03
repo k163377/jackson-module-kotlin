@@ -69,7 +69,7 @@ internal class MethodInstantiator<T>(
             }
         }
 
-        instanceClazz.getDeclaredMethod("${method.name}\$default", *argumentTypes)
+        SpreadWrapper.getDeclaredMethod(instanceClazz, "${method.name}\$default", argumentTypes)
             .apply { isAccessible = true }
     }
     private val originalDefaultValues: Array<Any?> by lazy {

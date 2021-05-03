@@ -25,7 +25,7 @@ internal class ConstructorInstantiator<T>(
             this[lastMaskIndex] = DEFAULT_CONSTRUCTOR_MARKER
         }
 
-        constructor.declaringClass.getConstructor(*parameterTypes)
+        SpreadWrapper.getConstructor(constructor.declaringClass, parameterTypes)
             .apply { isAccessible = true }
     }
 
