@@ -41,6 +41,7 @@ internal class MethodInstantiator<T>(
         var processingMode = ProcessingMode.Instance
         var innerIndex = 0
 
+        // argumentTypes = arrayOf(instanceClazz, *parameterTypes, *Array(bucketGenerator.maskSize) { INT_PRIMITIVE_CLASS }, Object::class.java)
         val argumentTypes = Array(defaultArgumentSize) {
             when(processingMode) {
                 ProcessingMode.Instance -> {
