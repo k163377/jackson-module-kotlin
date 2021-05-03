@@ -33,15 +33,17 @@ internal class MethodInstantiator<T>(
 
     // This initialization process is heavy and will not be done until it is needed.
     private val localMethod: Method by lazy {
+        val instanceClazz = instance::class.java
+        val parameterTypes = method.parameterTypes
+
         var processingMode = ProcessingMode.Instance
         var innerIndex = 0
-        val parameterTypes = method.parameterTypes
         // argument size = parameterSize + maskSize + instanceSize(= 1) + markerSize(= 1)
         val argumentTypes = Array(valueParameters.size + bucketGenerator.maskSize + 2) {
             when(processingMode) {
                 ProcessingMode.Instance -> {
                     processingMode = ProcessingMode.ParameterTypes
-                    instance::class.java
+                    instanceClazz
                 }
                 ProcessingMode.ParameterTypes -> {
                     val next = parameterTypes[innerIndex]
@@ -64,7 +66,7 @@ internal class MethodInstantiator<T>(
             }
         }
 
-        instance::class.java.getDeclaredMethod("${method.name}\$default", *argumentTypes)
+        instanceClazz.getDeclaredMethod("${method.name}\$default", *argumentTypes)
             .apply { isAccessible = true }
     }
 
