@@ -1,9 +1,6 @@
 package com.fasterxml.jackson.module.kotlin
 
-import kotlin.reflect.KParameter
-import kotlin.reflect.jvm.jvmErasure
-
-internal class BucketGenerator(parameters: List<KParameter>) {
+internal class BucketGenerator(parameters: List<KParameterCache>) {
     private val paramSize: Int = parameters.size
     val maskSize = (paramSize / Int.SIZE_BITS) + 1
     // For Optional and Primitive types, set the initial value because the function cannot be called if the argument is null.
