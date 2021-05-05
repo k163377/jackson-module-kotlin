@@ -1,7 +1,6 @@
 package com.fasterxml.jackson.module.kotlin
 
 import kotlin.reflect.KParameter
-import kotlin.reflect.jvm.jvmErasure
 
 internal class BucketGenerator(parameters: List<KParameter>) {
     private val paramSize: Int = parameters.size
@@ -11,7 +10,7 @@ internal class BucketGenerator(parameters: List<KParameter>) {
         val param = parameters[it]
 
         if (param.isOptional) {
-            ABSENT_VALUE[param.type.jvmErasure.java]
+            ABSENT_VALUE[param.type.erasedType()]
         } else {
             null
         }
