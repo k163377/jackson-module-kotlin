@@ -8,7 +8,7 @@ internal class BucketGenerator(parameters: List<KParameterCache>) {
         val param = parameters[it]
 
         if (param.isOptional) {
-            ABSENT_VALUE[param.type.jvmErasure.java]
+            ABSENT_VALUE[param.type.erasedType()]
         } else {
             null
         }
