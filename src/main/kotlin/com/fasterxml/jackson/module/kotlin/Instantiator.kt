@@ -5,7 +5,7 @@ import kotlin.reflect.KParameter
 
 internal interface Instantiator<T> {
     val hasInstanceParameter: Boolean
-    val valueParameters: List<KParameter>
+    val valueParameters: List<KParameterCache>
     fun checkAccessibility(ctxt: DeserializationContext)
 
     fun generateBucket(): ArgumentBucket

@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.module.kotlin.Instantiator.Companion.INT_PRIMITIVE_CLASS
 import java.lang.reflect.Method
 import kotlin.reflect.KFunction
-import kotlin.reflect.KParameter
 import kotlin.reflect.full.valueParameters
 
 // This class does not support inner constructor.
@@ -16,7 +15,7 @@ internal class MethodInstantiator<T>(
     companionAccessible: Boolean
 ) : Instantiator<T> {
     override val hasInstanceParameter: Boolean = true
-    override val valueParameters: List<KParameter> = kFunction.valueParameters
+    override val valueParameters: List<KParameterCache> = kFunction.valueParameters.map { KParameterCache(it) }
     private val accessible: Boolean = companionAccessible && method.isAccessible
     private val bucketGenerator = BucketGenerator(valueParameters)
 
