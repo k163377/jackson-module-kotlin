@@ -33,6 +33,13 @@ internal class BucketGenerator(parameters: List<KParameter>) {
     }
 }
 
+/**
+ * Class for managing arguments and their initialization state.
+ * [masks] is used to manage the initialization state of arguments, and is also a mask to indicate whether to use default arguments in Kotlin.
+ * For the [masks] bit, 0 means initialized and 1 means uninitialized.
+ *
+ * @property  values  Arguments arranged in order in the manner of a bucket sort.
+ */
 internal class ArgumentBucket(
     private val paramSize: Int,
     val values: Array<Any?>,
@@ -42,26 +49,35 @@ internal class ArgumentBucket(
 
     private fun getMaskAddress(index: Int): Pair<Int, Int> = (index / Int.SIZE_BITS) to (index % Int.SIZE_BITS)
 
-    // This is a method equivalent to put of MutableMap.
+    /**
+     * The set argument process, similar to MutableMap's put.
+     * @return the previous value associated with the key, or `null` if the key was not present in the map.
+     */
     operator fun set(index: Int, value: Any?): Any? {
         val maskAddress = getMaskAddress(index)
 
         val updatedMask = masks[maskAddress.first] and BIT_FLAGS[maskAddress.second]
 
         return if (updatedMask != masks[maskAddress.first]) {
+            // If the argument has not been initialized, it counts up and returns null.
             values[index] = value
             masks[maskAddress.first] = updatedMask
             initializedCount++
 
             null
         } else {
+            // If it has been initialized, it swaps the values and returns the previous value.
             values[index].apply { values[index] = value }
         }
     }
 
     fun isFullInitialized(): Boolean = initializedCount == paramSize
 
-    // returns arrayOf(*values, *masks, null)
+    /**
+     * An array of values to be used when making calls with default arguments.
+     * The null at the end is a marker for synthetic method.
+     * @return arrayOf(*values, *masks, null)
+     */
     fun getValuesOnDefault(): Array<Any?> = values.copyOf(values.size + masks.size + 1).apply {
         masks.forEachIndexed { i, mask ->
             this[values.size + i] = mask
@@ -69,6 +85,7 @@ internal class ArgumentBucket(
     }
 
     companion object {
+        // List of Int with only 1 bit enabled.
         private val BIT_FLAGS: List<Int> = IntArray(Int.SIZE_BITS) { (1 shl it).inv() }.asList()
     }
 }
