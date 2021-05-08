@@ -59,6 +59,10 @@ internal class MethodInstantiator<T>(
     override fun callBy(bucket: ArgumentBucket) = when (bucket.isFullInitialized()) {
         true -> SpreadWrapper.invoke(method, instance, bucket.values)
         false -> {
+            // When calling a method defined in companion object with default arguments,
+            // the arguments are in the order of [instance, *args, *masks, null].
+            // Since ArgumentBucket.getValuesOnDefault returns [*args, *masks, null],
+            // it should be repacked into an array including instance.
             val values = originalDefaultValues.clone().apply {
                 bucket.getValuesOnDefault().forEachIndexed { index, value ->
                     this[index + 1] = value

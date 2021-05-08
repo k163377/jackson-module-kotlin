@@ -11,6 +11,7 @@ import kotlin.reflect.KParameter
 internal class ConstructorInstantiator<T>(
     kConstructor: KFunction<T>, private val constructor: Constructor<T>
 ) : Instantiator<T> {
+    // Top level constructor does not require any instance parameters.
     override val hasInstanceParameter: Boolean = false
     override val valueParameters: List<KParameter> = kConstructor.parameters
     private val accessible: Boolean = constructor.isAccessible
