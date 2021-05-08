@@ -8,7 +8,6 @@ import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
 import kotlin.reflect.full.valueParameters
 
-// This class does not support inner constructor.
 internal class MethodInstantiator<T>(
     kFunction: KFunction<T>,
     private val method: Method,
