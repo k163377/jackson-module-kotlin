@@ -52,24 +52,17 @@ internal class ArgumentBucket(
     private fun getMaskAddress(index: Int): Pair<Int, Int> = (index / Int.SIZE_BITS) to (index % Int.SIZE_BITS)
 
     /**
-     * The set argument process, similar to MutableMap's put.
-     * @return the previous value associated with the key, or `null` if the key was not present in the map.
+     * Set the argument. The second and subsequent inputs for the same `index` will be ignored.
      */
-    operator fun set(index: Int, value: Any?): Any? {
+    operator fun set(index: Int, value: Any?) {
         val maskAddress = getMaskAddress(index)
 
         val updatedMask = masks[maskAddress.first] and BIT_FLAGS[maskAddress.second]
 
-        return if (updatedMask != masks[maskAddress.first]) {
-            // If the argument has not been initialized, it counts up and returns null.
+        if (updatedMask != masks[maskAddress.first]) {
             values[index] = value
             masks[maskAddress.first] = updatedMask
             initializedCount++
-
-            null
-        } else {
-            // If it has been initialized, it swaps the values and returns the previous value.
-            values[index].apply { values[index] = value }
         }
     }
 
