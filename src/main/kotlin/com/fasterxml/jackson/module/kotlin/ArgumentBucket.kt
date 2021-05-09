@@ -23,6 +23,8 @@ internal class BucketGenerator(parameters: List<KParameter>) {
         private const val FILLED_MASK = -1
 
         private val ABSENT_VALUE: Map<Class<*>, Any> = mapOf(
+            Boolean::class.javaPrimitiveType!! to false,
+            Char::class.javaPrimitiveType!! to Char.MIN_VALUE,
             Byte::class.javaPrimitiveType!! to Byte.MIN_VALUE,
             Short::class.javaPrimitiveType!! to Short.MIN_VALUE,
             Int::class.javaPrimitiveType!! to Int.MIN_VALUE,
