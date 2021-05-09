@@ -9,6 +9,7 @@ import java.lang.reflect.Method;
 
 /**
  * Wrapper to avoid costly calls using spread operator.
+ * @since 2.13
  */
 class SpreadWrapper {
     public static <T> Constructor<T> getConstructor(
