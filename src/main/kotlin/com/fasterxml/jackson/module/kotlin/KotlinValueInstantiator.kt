@@ -66,7 +66,43 @@ internal class KotlinValueInstantiator(
                 paramVal = NullsAsEmptyProvider(jsonProp.valueDeserializer).getNullValue(ctxt)
             }
 
-            throwIfMissingParameter(paramDef, paramVal, isMissing, jsonProp, ctxt)
+            val isGenericTypeVar = paramDef.type.javaType is TypeVariable<*>
+            val isMissingAndRequired = paramVal == null && isMissing && jsonProp.isRequired
+            if (isMissingAndRequired ||
+                (!isGenericTypeVar && paramVal == null && !paramDef.type.isMarkedNullable)) {
+                throw MissingKotlinParameterException(
+                    parameter = paramDef,
+                    processor = ctxt.parser,
+                    msg = "Instantiation of ${this.valueTypeDesc} value failed for JSON property ${jsonProp.name} due to missing (therefore NULL) value for creator parameter ${paramDef.name} which is a non-nullable type"
+                ).wrapWithPath(this.valueClass, jsonProp.name)
+            }
+
+            if (strictNullChecks && paramVal != null) {
+                var paramType: String? = null
+                var itemType: KType? = null
+                if (jsonProp.type.isCollectionLikeType && paramDef.type.arguments.getOrNull(0)?.type?.isMarkedNullable == false && (paramVal as Collection<*>).any { it == null }) {
+                    paramType = "collection"
+                    itemType = paramDef.type.arguments[0].type
+                }
+
+                if (jsonProp.type.isMapLikeType && paramDef.type.arguments.getOrNull(1)?.type?.isMarkedNullable == false && (paramVal as Map<*, *>).any { it.value == null }) {
+                    paramType = "map"
+                    itemType = paramDef.type.arguments[1].type
+                }
+
+                if (jsonProp.type.isArrayType && paramDef.type.arguments.getOrNull(0)?.type?.isMarkedNullable == false && (paramVal as Array<*>).any { it == null }) {
+                    paramType = "array"
+                    itemType = paramDef.type.arguments[0].type
+                }
+
+                if (paramType != null && itemType != null) {
+                    throw MissingKotlinParameterException(
+                        parameter = paramDef,
+                        processor = ctxt.parser,
+                        msg = "Instantiation of $itemType $paramType failed for JSON property ${jsonProp.name} due to null value in a $paramType that does not allow null values"
+                    ).wrapWithPath(this.valueClass, jsonProp.name)
+                }
+            }
 
             bucket[idx] = paramVal
         }
@@ -159,7 +195,43 @@ internal class KotlinValueInstantiator(
                 paramVal = NullsAsEmptyProvider(jsonProp.valueDeserializer).getNullValue(ctxt)
             }
 
-            throwIfMissingParameter(paramDef, paramVal, isMissing, jsonProp, ctxt)
+            val isGenericTypeVar = paramDef.type.javaType is TypeVariable<*>
+            val isMissingAndRequired = paramVal == null && isMissing && jsonProp.isRequired
+            if (isMissingAndRequired ||
+                (!isGenericTypeVar && paramVal == null && !paramDef.type.isMarkedNullable)) {
+                throw MissingKotlinParameterException(
+                    parameter = paramDef,
+                    processor = ctxt.parser,
+                    msg = "Instantiation of ${this.valueTypeDesc} value failed for JSON property ${jsonProp.name} due to missing (therefore NULL) value for creator parameter ${paramDef.name} which is a non-nullable type"
+                ).wrapWithPath(this.valueClass, jsonProp.name)
+            }
+
+            if (strictNullChecks && paramVal != null) {
+                var paramType: String? = null
+                var itemType: KType? = null
+                if (jsonProp.type.isCollectionLikeType && paramDef.type.arguments.getOrNull(0)?.type?.isMarkedNullable == false && (paramVal as Collection<*>).any { it == null }) {
+                    paramType = "collection"
+                    itemType = paramDef.type.arguments[0].type
+                }
+
+                if (jsonProp.type.isMapLikeType && paramDef.type.arguments.getOrNull(1)?.type?.isMarkedNullable == false && (paramVal as Map<*, *>).any { it.value == null }) {
+                    paramType = "map"
+                    itemType = paramDef.type.arguments[1].type
+                }
+
+                if (jsonProp.type.isArrayType && paramDef.type.arguments.getOrNull(0)?.type?.isMarkedNullable == false && (paramVal as Array<*>).any { it == null }) {
+                    paramType = "array"
+                    itemType = paramDef.type.arguments[0].type
+                }
+
+                if (paramType != null && itemType != null) {
+                    throw MissingKotlinParameterException(
+                        parameter = paramDef,
+                        processor = ctxt.parser,
+                        msg = "Instantiation of $itemType $paramType failed for JSON property ${jsonProp.name} due to null value in a $paramType that does not allow null values"
+                    ).wrapWithPath(this.valueClass, jsonProp.name)
+                }
+            }
 
             jsonParamValueList[numCallableParameters] = paramVal
             callableParameters[numCallableParameters] = paramDef
@@ -183,45 +255,6 @@ internal class KotlinValueInstantiator(
                 }
             }
             callable.callBy(callableParametersByName)
-        }
-    }
-
-    private fun throwIfMissingParameter(paramDef: KParameter, paramVal: Any?, isMissing: Boolean, jsonProp: SettableBeanProperty, ctxt: DeserializationContext) {
-        val isGenericTypeVar = paramDef.type.javaType is TypeVariable<*>
-        val isMissingAndRequired = paramVal == null && isMissing && jsonProp.isRequired
-        if (isMissingAndRequired || (!isGenericTypeVar && paramVal == null && !paramDef.type.isMarkedNullable)) {
-            throw MissingKotlinParameterException(
-                    parameter = paramDef,
-                    processor = ctxt.parser,
-                    msg = "Instantiation of ${this.valueTypeDesc} value failed for JSON property ${jsonProp.name} due to missing (therefore NULL) value for creator parameter ${paramDef.name} which is a non-nullable type"
-            ).wrapWithPath(this.valueClass, jsonProp.name)
-        }
-
-        if (strictNullChecks && paramVal != null) {
-            var paramType: String? = null
-            var itemType: KType? = null
-            if (jsonProp.type.isCollectionLikeType && paramDef.type.arguments.getOrNull(0)?.type?.isMarkedNullable == false && (paramVal as Collection<*>).any { it == null }) {
-                paramType = "collection"
-                itemType = paramDef.type.arguments[0].type
-            }
-
-            if (jsonProp.type.isMapLikeType && paramDef.type.arguments.getOrNull(1)?.type?.isMarkedNullable == false && (paramVal as Map<*, *>).any { it.value == null }) {
-                paramType = "map"
-                itemType = paramDef.type.arguments[1].type
-            }
-
-            if (jsonProp.type.isArrayType && paramDef.type.arguments.getOrNull(0)?.type?.isMarkedNullable == false && (paramVal as Array<*>).any { it == null }) {
-                paramType = "array"
-                itemType = paramDef.type.arguments[0].type
-            }
-
-            if (paramType != null && itemType != null) {
-                throw MissingKotlinParameterException(
-                        parameter = paramDef,
-                        processor = ctxt.parser,
-                        msg = "Instantiation of $itemType $paramType failed for JSON property ${jsonProp.name} due to null value in a $paramType that does not allow null values"
-                ).wrapWithPath(this.valueClass, jsonProp.name)
-            }
         }
     }
 
