@@ -26,7 +26,6 @@ import kotlin.reflect.jvm.javaType
 internal class KotlinValueInstantiator(
     src: StdValueInstantiator,
     private val cache: ReflectionCache,
-    private val cacheNew: ReflectionCacheNew,
     private val nullToEmptyCollection: Boolean,
     private val nullToEmptyMap: Boolean,
     private val nullIsSameAsDefault: Boolean,
@@ -38,7 +37,7 @@ internal class KotlinValueInstantiator(
         props: Array<out SettableBeanProperty>,
         buffer: PropertyValueBuffer
     ): Any? {
-        val instantiator: Instantiator<*> = cacheNew.instantiatorFromJava(_withArgsCreator)
+        val instantiator: Instantiator<*> = cache.instantiatorFromJava(_withArgsCreator)
             ?: return super.createFromObjectWith(ctxt, props, buffer) // we cannot reflect this method so do the default Java-ish behavior
 
         val bucket = instantiator.generateBucket()
@@ -280,7 +279,6 @@ internal class KotlinValueInstantiator(
 
 internal class KotlinInstantiators(
     private val cache: ReflectionCache,
-    private val cacheNew: ReflectionCacheNew,
     private val nullToEmptyCollection: Boolean,
     private val nullToEmptyMap: Boolean,
     private val nullIsSameAsDefault: Boolean,
@@ -297,7 +295,6 @@ internal class KotlinInstantiators(
                 KotlinValueInstantiator(
                     defaultInstantiator,
                     cache,
-                    cacheNew,
                     nullToEmptyCollection,
                     nullToEmptyMap,
                     nullIsSameAsDefault,

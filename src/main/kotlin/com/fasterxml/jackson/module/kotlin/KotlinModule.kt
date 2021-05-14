@@ -77,11 +77,9 @@ class KotlinModule constructor (
         }
 
         val cache = ReflectionCache(reflectionCacheSize)
-        val cacheNew = ReflectionCacheNew(reflectionCacheSize)
 
         context.addValueInstantiators(KotlinInstantiators(
             cache,
-            cacheNew,
             nullToEmptyCollection,
             nullToEmptyMap,
             nullIsSameAsDefault,
