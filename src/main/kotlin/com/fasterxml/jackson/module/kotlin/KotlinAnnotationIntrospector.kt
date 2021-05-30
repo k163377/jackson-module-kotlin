@@ -7,18 +7,15 @@ import com.fasterxml.jackson.databind.Module
 import com.fasterxml.jackson.databind.cfg.MapperConfig
 import com.fasterxml.jackson.databind.introspect.*
 import com.fasterxml.jackson.databind.jsontype.NamedType
+import kotlinx.metadata.*
+import kotlinx.metadata.jvm.fieldSignature
+import kotlinx.metadata.jvm.getterSignature
+import kotlinx.metadata.jvm.setterSignature
+import kotlinx.metadata.jvm.signature
 import java.lang.reflect.AccessibleObject
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
 import java.lang.reflect.Method
-import kotlin.reflect.KFunction
-import kotlin.reflect.KMutableProperty1
-import kotlin.reflect.KProperty1
-import kotlin.reflect.KType
-import kotlin.reflect.full.createType
-import kotlin.reflect.full.declaredMemberProperties
-import kotlin.reflect.jvm.*
-
 
 internal class KotlinAnnotationIntrospector(private val context: Module.SetupContext,
                                             private val cache: ReflectionCache,
@@ -29,25 +26,23 @@ internal class KotlinAnnotationIntrospector(private val context: Module.SetupCon
     // TODO: implement nullIsSameAsDefault flag, which represents when TRUE that if something has a default value, it can be passed a null to default it
     //       this likely impacts this class to be accurate about what COULD be considered required
 
-    override fun hasRequiredMarker(m: AnnotatedMember): Boolean? {
-        val hasRequired = cache.javaMemberIsRequired(m) {
-            try {
-                when {
-                    nullToEmptyCollection && m.type.isCollectionLikeType -> false
-                    nullToEmptyMap && m.type.isMapLikeType -> false
-                    m.member.declaringClass.isKotlinClass() -> when (m) {
-                        is AnnotatedField -> m.hasRequiredMarker()
-                        is AnnotatedMethod -> m.hasRequiredMarker()
-                        is AnnotatedParameter -> m.hasRequiredMarker()
-                        else -> null
-                    }
+    override fun hasRequiredMarker(m: AnnotatedMember): Boolean? = cache.javaMemberIsRequired(m) {
+        try {
+            val kmClass = m.member.declaringClass.toKmClassOrNull()
+            when {
+                nullToEmptyCollection && m.type.isCollectionLikeType -> false
+                nullToEmptyMap && m.type.isMapLikeType -> false
+                kmClass != null -> when (m) {
+                    is AnnotatedField -> m.hasRequiredMarker(kmClass)
+                    is AnnotatedMethod -> m.hasRequiredMarker(kmClass)
+                    is AnnotatedParameter -> m.hasRequiredMarker(kmClass)
                     else -> null
                 }
-            } catch (ex: UnsupportedOperationException) {
-                null
+                else -> null
             }
+        } catch (ex: UnsupportedOperationException) {
+            null
         }
-        return hasRequired
     }
 
     override fun findCreatorAnnotation(config: MapperConfig<*>, a: Annotated): JsonCreator.Mode? {
@@ -63,18 +58,17 @@ internal class KotlinAnnotationIntrospector(private val context: Module.SetupCon
      * Subclasses can be detected automatically for sealed classes, since all possible subclasses are known
      * at compile-time to Kotlin. This makes [com.fasterxml.jackson.annotation.JsonSubTypes] redundant.
      */
-    override fun findSubtypes(a: Annotated): MutableList<NamedType>? = a.rawType
-        .takeIf { it.isKotlinClass() }
-        ?.let { rawType ->
-            rawType.kotlin.sealedSubclasses
-                .map { NamedType(it.java) }
-                .toMutableList()
-                .ifEmpty { null }
-        }
+    override fun findSubtypes(a: Annotated): MutableList<NamedType>? = a.toKmClassOrNull()?.let { kmClass ->
+        kmClass.sealedSubclasses
+            .map { NamedType(it.toJavaClass()) }
+            .toMutableList()
+            .ifEmpty { null }
+    }
 
-    private fun AnnotatedField.hasRequiredMarker(): Boolean? {
-        val byAnnotation = (member as Field).isRequiredByAnnotation()
-        val byNullability =  (member as Field).kotlinProperty?.returnType?.isRequired()
+    private fun AnnotatedField.hasRequiredMarker(kmClass: KmClass): Boolean? {
+        val field = member as Field
+        val byAnnotation = field.isRequiredByAnnotation()
+        val byNullability = kmClass.properties.find { field.name == it.fieldSignature?.name }?.returnType?.isRequired()
 
         return requiredAnnotationOrNullability(byAnnotation, byNullability)
     }
@@ -97,92 +91,79 @@ internal class KotlinAnnotationIntrospector(private val context: Module.SetupCon
        return (this.annotations.firstOrNull { it.annotationClass.java == JsonProperty::class.java } as? JsonProperty)?.required
     }
 
-    private fun AnnotatedMethod.hasRequiredMarker(): Boolean? {
-        // This could be a setter or a getter of a class property or
-        // a setter-like/getter-like method.
-        val paramGetter = this.getCorrespondingGetter()
-        if (paramGetter != null) {
-            val byAnnotation = paramGetter.javaGetter?.isRequiredByAnnotation()
-            return requiredAnnotationOrNullability(byAnnotation, paramGetter.returnType.isRequired())
-        }
+    // Since Kotlin's property has the same Type for each field, getter, and setter,
+    // nullability can be determined from the returnType of KmProperty.
+    private fun KmProperty.isRequiredByNullability(): Boolean = !Flag.Type.IS_NULLABLE(returnType.flags)
+    private fun KmType.isRequired() = !Flag.Type.IS_NULLABLE(flags)
 
-        val paramSetter = this.getCorrespondingSetter()
-        if (paramSetter != null) {
-            val byAnnotation = paramSetter.javaMethod?.isRequiredByAnnotation()
-            return requiredAnnotationOrNullability(byAnnotation, paramSetter.isMethodParameterRequired(0))
-        }
+    private fun AnnotatedMethod.hasRequiredMarker(kmClass: KmClass): Boolean? =
+        this.getRequiredMarkerFromCorrespondingAccessor(kmClass)
+            ?: this.member.getRequiredMarkerFromAccessorLikeMethod(kmClass)
 
-        // Is the member method a regular method of the data class or
-        val method = this.member.kotlinFunction
-        if (method != null) {
-            val byAnnotation = method.javaMethod?.isRequiredByAnnotation()
-            if (method.isGetterLike()) {
-                return requiredAnnotationOrNullability(byAnnotation, method.returnType.isRequired())
-            }
-
-            if (method.isSetterLike()) {
-                return requiredAnnotationOrNullability(byAnnotation, method.isMethodParameterRequired(0))
+    private fun AnnotatedMethod.getRequiredMarkerFromCorrespondingAccessor(kmClass: KmClass): Boolean? {
+        kmClass.properties.forEach { kmProperty ->
+            if (member.isAccessorOf(kmProperty)) {
+                val byAnnotation = this.member.isRequiredByAnnotation()
+                val byNullability = kmProperty.isRequiredByNullability()
+                return requiredAnnotationOrNullability(byAnnotation, byNullability)
             }
         }
-
         return null
     }
 
-    private fun KFunction<*>.isGetterLike(): Boolean = parameters.size == 1
-    private fun KFunction<*>.isSetterLike(): Boolean =
-            parameters.size == 2 && returnType == Unit::class.createType()
+    private fun Method.isAccessorOf(kmProperty: KmProperty): Boolean =
+        kmProperty.getterSignature?.name == name || kmProperty.setterSignature?.name == name
 
-
-    private fun AnnotatedMethod.getCorrespondingGetter(): KProperty1<out Any, Any?>? =
-            member.declaringClass.kotlin.declaredMemberProperties.find {
-                it.getter.javaMethod == this.member
-            }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun AnnotatedMethod.getCorrespondingSetter(): KMutableProperty1.Setter<out Any, Any?>? {
-        val mutableProperty = member.declaringClass.kotlin.declaredMemberProperties.find {
-            when (it) {
-                is KMutableProperty1 -> it.javaSetter == this.member
-                else                 -> false
+    // Is the member method a regular method of the data class or
+    private fun Method.getRequiredMarkerFromAccessorLikeMethod(kmClass: KmClass): Boolean? {
+        val byAnnotation = this.isRequiredByAnnotation()
+        kmClass.functions.forEach { kmFunction ->
+            if (kmFunction.signature?.name == name) {
+                val byNullability = when {
+                    kmFunction.isGetterLike() -> kmFunction.returnType.isRequired()
+                    kmFunction.isSetterLike() -> isMethodParameterRequired(
+                        kmFunction.valueParameters[0],
+                        this.parameterTypes[0]
+                    )
+                    else -> return null
+                }
+                return requiredAnnotationOrNullability(byAnnotation, byNullability)
             }
         }
-        return (mutableProperty as? KMutableProperty1<out Any, Any?>)?.setter
+        return null
     }
 
-    private fun AnnotatedParameter.hasRequiredMarker(): Boolean? {
-        val member = this.member
+    private fun KmFunction.isGetterLike(): Boolean = valueParameters.size == 0
+    // As an edge case, there is a pattern where the return type is Unit?, but it is not considered.
+    private fun KmFunction.isSetterLike(): Boolean =
+        valueParameters.size == 1 && returnType.classifier == UNIT_CLASSIFIER
+
+    private fun AnnotatedParameter.hasRequiredMarker(kmClass: KmClass): Boolean? {
         val byAnnotation = this.getAnnotation(JsonProperty::class.java)?.required
 
+        val member = this.member
+
         val byNullability = when (member) {
-            is Constructor<*> -> member.kotlinFunction?.isConstructorParameterRequired(index)
-            is Method         -> member.kotlinFunction?.isMethodParameterRequired(index)
+            is Constructor<*> -> kmClass.getKmConstructor(member).valueParameters to member.parameterTypes
+            is Method         -> kmClass.getKmFunction(member)?.let { it.valueParameters to member.parameterTypes }
             else              -> null
+        }?.let {
+            isMethodParameterRequired(it.first[index], it.second[index])
         }
 
         return requiredAnnotationOrNullability(byAnnotation, byNullability)
     }
 
-    private fun KFunction<*>.isConstructorParameterRequired(index: Int): Boolean {
-        return isParameterRequired(index)
-    }
+    private fun isMethodParameterRequired(param: KmValueParameter, type: Class<*>): Boolean {
+        val isRequired = Flag.Type.IS_NULLABLE(param.type!!.flags)
+        val isOptional = Flag.ValueParameter.DECLARES_DEFAULT_VALUE(param.flags)
+        val isPrimitive = type.isPrimitive
 
-    private fun KFunction<*>.isMethodParameterRequired(index: Int): Boolean {
-        return isParameterRequired(index+1)
-    }
-
-    private fun KFunction<*>.isParameterRequired(index: Int): Boolean {
-        val param = parameters[index]
-        val paramType = param.type
-        val javaType = paramType.javaType
-        val isPrimitive = when (javaType) {
-            is Class<*> -> javaType.isPrimitive
-            else -> false
-        }
-
-        return !paramType.isMarkedNullable && !param.isOptional &&
+        return !isRequired && !isOptional &&
                 !(isPrimitive && !context.isEnabled(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES))
     }
 
-    private fun KType.isRequired(): Boolean = !isMarkedNullable
-
+    companion object {
+        val UNIT_CLASSIFIER: KmClassifier = KmClassifier.Class("kotlin/Unit")
+    }
 }
