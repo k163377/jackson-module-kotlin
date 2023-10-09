@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.deser.ValueInstantiators
 import com.fasterxml.jackson.databind.deser.impl.NullsAsEmptyProvider
 import com.fasterxml.jackson.databind.deser.impl.PropertyValueBuffer
 import com.fasterxml.jackson.databind.deser.std.StdValueInstantiator
+import com.fasterxml.jackson.databind.exc.InvalidNullException
 import com.fasterxml.jackson.databind.exc.MismatchedInputException
 import java.lang.reflect.TypeVariable
 import kotlin.reflect.KParameter
@@ -98,13 +99,8 @@ internal class KotlinValueInstantiator(
 
                     // Since #310 reported that the calculation cost is high, isGenericTypeVar is determined last.
                     if (isMissingAndRequired || (!paramType.isMarkedNullable && !paramType.isGenericTypeVar())) {
-                        throw MismatchedInputException.from(
-                            ctxt.parser,
-                            propType,
-                            "Instantiation of $valueTypeDesc value failed for JSON property ${jsonProp.name} " +
-                                    "due to missing (therefore NULL) value for creator parameter ${paramDef.name} " +
-                                    "which is a non-nullable type"
-                        ).wrapWithPath(this.valueClass, jsonProp.name)
+                        throw InvalidNullException.from(ctxt, jsonProp.fullName, propType)
+                            .wrapWithPath(this.valueClass, jsonProp.name)
                     }
                 }
             } else if (strictNullChecks) {
