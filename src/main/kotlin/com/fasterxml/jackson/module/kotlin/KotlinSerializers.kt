@@ -8,33 +8,34 @@ import com.fasterxml.jackson.databind.JsonSerializer
 import com.fasterxml.jackson.databind.SerializationConfig
 import com.fasterxml.jackson.databind.SerializerProvider
 import com.fasterxml.jackson.databind.ser.Serializers
+import com.fasterxml.jackson.databind.ser.std.StdScalarSerializer
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.math.BigInteger
 
-object UByteSerializer : StdSerializer<UByte>(UByte::class.java) {
+object UByteSerializer : StdScalarSerializer<UByte>(UByte::class.java) {
     private fun readResolve(): Any = UByteSerializer
 
     override fun serialize(value: UByte, gen: JsonGenerator, provider: SerializerProvider) =
         gen.writeNumber(value.toShort())
 }
 
-object UShortSerializer : StdSerializer<UShort>(UShort::class.java) {
+object UShortSerializer : StdScalarSerializer<UShort>(UShort::class.java) {
     private fun readResolve(): Any = UShortSerializer
 
     override fun serialize(value: UShort, gen: JsonGenerator, provider: SerializerProvider) =
         gen.writeNumber(value.toInt())
 }
 
-object UIntSerializer : StdSerializer<UInt>(UInt::class.java) {
+object UIntSerializer : StdScalarSerializer<UInt>(UInt::class.java) {
     private fun readResolve(): Any = UIntSerializer
 
     override fun serialize(value: UInt, gen: JsonGenerator, provider: SerializerProvider) =
         gen.writeNumber(value.toLong())
 }
 
-object ULongSerializer : StdSerializer<ULong>(ULong::class.java) {
+object ULongSerializer : StdScalarSerializer<ULong>(ULong::class.java) {
     private fun readResolve(): Any = ULongSerializer
 
     override fun serialize(value: ULong, gen: JsonGenerator, provider: SerializerProvider) {
