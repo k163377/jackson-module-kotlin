@@ -55,7 +55,7 @@
     </scm>
 
     <properties>
-        <version.kotlin>2.1.21</version.kotlin>
+        <version.kotlin>2.4.0-RC2</version.kotlin>
 
         <!-- Generate PackageVersion.java into this directory. -->
         <packageVersion.dir>tools/jackson/module/kotlin</packageVersion.dir>
