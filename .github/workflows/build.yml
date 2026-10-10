@@ -100,12 +100,78 @@ jobs:
         # gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }} # Value of the GPG private key to import
         # gpg-passphrase: MAVEN_GPG_PASSPHRASE # env variable for GPG private key passphrase
 
+    # The outcome of the tests of one combination depends only on the module
+    # sources, the resolved dependencies (SNAPSHOTs included) and the JDK. When a
+    # combination already passed with exactly the same inputs, its tests are not
+    # run again. So a change that only edits the version lists in the caller
+    # workflows (e.g. adding a Kotlin version) runs just the new combinations,
+    # while any change in the sources, this file or a dependency reruns them all.
+    # Deleting the 'test-passed-*' caches forces a full run.
+    - name: Fingerprint test inputs
+      id: fingerprint
+      env:
+        KOTLIN_VERSION: ${{ matrix.kotlin_version }}
+      run: |
+        inputs="$RUNNER_TEMP/test-inputs"
+        mkdir -p "$inputs"
+        # Module sources. The caller workflows only pass the versions, which are
+        # part of the key, and the other excluded files are not part of the build.
+        git ls-files -s -- . \
+          ':(exclude).github/workflows/main.yml' \
+          ':(exclude).github/workflows/dep_build_v2.yml' \
+          ':(exclude).github/workflows/dep_build_v3.yml' \
+          ':(exclude)README.md' \
+          ':(exclude)release-notes' > "$inputs/sources.txt"
+        { echo "ImageOS=$ImageOS"; java -version 2>&1; } > "$inputs/jdk.txt"
+        # Parent POMs and BOMs. '-U' makes sure the latest SNAPSHOTs are resolved
+        # here, and so used by the build below. Comments carry no configuration.
+        ./mvnw -B -q -ff -ntp -U org.apache.maven.plugins:maven-help-plugin:3.5.1:effective-pom \
+          -Doutput="$RUNNER_TEMP/effective-pom.xml"
+        sed '/<!--.*-->/d' "$RUNNER_TEMP/effective-pom.xml" > "$inputs/effective-pom.xml"
+        # Contents of every dependency, with the Kotlin version the module is
+        # built with and the one it is tested with.
+        for kotlin_option in "" "-Dversion.kotlin=$KOTLIN_VERSION"; do
+          ./mvnw -B -q -ff -ntp $kotlin_option org.apache.maven.plugins:maven-dependency-plugin:3.11.0:build-classpath \
+            -Dmdep.includeScope=test -Dmdep.outputFile="$RUNNER_TEMP/classpath.txt"
+          tr ':' '\n' < "$RUNNER_TEMP/classpath.txt" | sort | xargs -d '\n' sha256sum
+        done > "$inputs/dependencies.txt"
+        (cd "$inputs" && sha256sum *)
+        echo "key=test-passed-v1-java${{ matrix.java_version }}-kotlin$KOTLIN_VERSION-$(cat "$inputs"/* | sha256sum | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+    - name: Look up a previous pass
+      id: previous
+      uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+      with:
+        path: ${{ runner.temp }}/test-passed
+        key: ${{ steps.fingerprint.outputs.key }}
+    - name: Skip tests
+      if: ${{ steps.previous.outputs.cache-hit == 'true' }}
+      run: |
+        message="Tests skipped: the same inputs already passed in $(cat "$RUNNER_TEMP/test-passed/run.txt")"
+        echo "::notice::$message"
+        echo "$message" >> "$GITHUB_STEP_SUMMARY"
+
     - name: Build
+      if: ${{ steps.previous.outputs.cache-hit != 'true' }}
       # Note: build separately first using default kotlin-core
       run: ./mvnw -B -q -ff -ntp -DskipTests clean package
     - name: Test
+      if: ${{ steps.previous.outputs.cache-hit != 'true' }}
       # Note: actual testing should use matrix kotlin-core version (note: MUST specify test phase)
       run: ./mvnw -B -q -ff -ntp -Dversion.kotlin=${{ matrix.kotlin_version }} surefire:test
+    - name: Record the pass
+      if: ${{ steps.previous.outputs.cache-hit != 'true' }}
+      run: |
+        mkdir -p "$RUNNER_TEMP/test-passed"
+        echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > "$RUNNER_TEMP/test-passed/run.txt"
+    - name: Save the pass
+      if: ${{ steps.previous.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+      with:
+        path: ${{ runner.temp }}/test-passed
+        key: ${{ steps.fingerprint.outputs.key }}
+
+    # A snapshot is deployed even when the tests were skipped: deploying builds
+    # the module on its own and does not depend on the steps above.
     - name: Extract project Maven version
       id: projectVersion
       if: ${{ env.RELEASE_BUILD == 'true' }}
